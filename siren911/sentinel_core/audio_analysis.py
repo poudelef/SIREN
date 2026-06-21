@@ -113,3 +113,152 @@ def plot_spectrogram(wav_data: np.ndarray, sr: int):
     ax.set_title("Spectrogram")
     fig.tight_layout()
     return fig
+
+# ---------------------------------------------------------------------------
+# Dispatcher-facing charts: plain-language, labeled for a non-technical
+# reader (dispatcher / responding officer), not an audio engineer. These are
+# meant to replace the raw FFT/spectrogram view as the *primary* visuals;
+# the technical plots above stay available for anyone who wants them.
+# ---------------------------------------------------------------------------
+ 
+SOUND_COLORS = {
+    "Siren": "#d62728",
+    "Gunshot": "#7f0000",
+    "Explosion": "#7f0000",
+    "Glass breaking": "#e6550d",
+    "Alarm": "#e6550d",
+    "Screaming / shouting": "#a31515",
+    "Crying": "#9467bd",
+    "Dog": "#8c6d31",
+    "Traffic / vehicles": "#1f77b4",
+    "Construction": "#7f7f7f",
+    "Door / impact": "#bcbd22",
+    "Footsteps": "#7f7f7f",
+    "Speech": "#2ca02c",
+    "Silence": "#cccccc",
+}
+ 
+ 
+def _format_mmss(seconds: float) -> str:
+    seconds = max(0, int(round(seconds)))
+    m, s = divmod(seconds, 60)
+    return f"{m}:{s:02d}"
+ 
+ 
+def _apply_mmss_xaxis(ax, duration_s: float):
+    ax.set_xlim(0, max(duration_s, 1))
+    ticks = ax.get_xticks()
+    ticks = [t for t in ticks if 0 <= t <= duration_s]
+    if not ticks:
+        ticks = [0, duration_s]
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([_format_mmss(t) for t in ticks])
+    ax.set_xlabel("Time into call (mm:ss)")
+ 
+ 
+def plot_voice_energy_timeline(rms_times: np.ndarray, rms: np.ndarray, duration_s: float):
+    """
+    Plain-language version of the waveform: how loud / energetic the
+    caller's voice was, over time, normalized to THIS call's own loudest
+    moment (0-100), with shaded "calm / raised / very loud" bands instead
+    of raw, unitless amplitude numbers.
+    """
+    peak = float(rms.max()) if len(rms) and rms.max() > 0 else 1.0
+    levels = (rms / peak) * 100.0
+ 
+    fig, ax = plt.subplots(figsize=(10, 3.2))
+    ax.axhspan(0, 33, color="#2ca02c", alpha=0.06, zorder=0)
+    ax.axhspan(33, 66, color="#ff7f0e", alpha=0.08, zorder=0)
+    ax.axhspan(66, 100, color="#d62728", alpha=0.10, zorder=0)
+ 
+    ax.fill_between(rms_times, levels, color="#1f4e8c", alpha=0.30, zorder=1)
+    ax.plot(rms_times, levels, color="#1f4e8c", linewidth=1.5, zorder=2)
+ 
+    ax.set_ylim(0, 100)
+    ax.set_ylabel("Caller voice energy\n(relative to this call, 0-100)")
+    ax.set_title("How loud / energetic the caller sounded, over time")
+    _apply_mmss_xaxis(ax, duration_s)
+ 
+    ax.text(0.995, 0.14, "Calm", transform=ax.transAxes, ha="right", fontsize=9, color="#2ca02c")
+    ax.text(0.995, 0.47, "Raised", transform=ax.transAxes, ha="right", fontsize=9, color="#cc6600")
+    ax.text(0.995, 0.80, "Very loud / distressed", transform=ax.transAxes, ha="right", fontsize=9, color="#a31515")
+ 
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    return fig
+ 
+ 
+def plot_sound_event_timeline(events: list, duration_s: float):
+    """
+    Timeline (one row per detected background-sound category) showing WHEN
+    each sound happened during the call. Reads like a Gantt chart -- far
+    easier to scan at a glance than a spectrogram for a non-technical
+    reader, and ties directly back to the "Detected background sound
+    events" list shown elsewhere in the report.
+    """
+    if not events:
+        fig, ax = plt.subplots(figsize=(10, 1.6))
+        ax.text(0.5, 0.5, "No notable background sounds detected above threshold",
+                ha="center", va="center", fontsize=11)
+        ax.axis("off")
+        return fig
+ 
+    categories = sorted({e["category"] for e in events})
+    fig, ax = plt.subplots(figsize=(10, 0.55 * len(categories) + 1.6))
+ 
+    for i, cat in enumerate(categories):
+        intervals = [(e["start"], e["end"] - e["start"]) for e in events if e["category"] == cat]
+        color = SOUND_COLORS.get(cat, "#999999")
+        ax.broken_barh(intervals, (i - 0.35, 0.7), facecolors=color, edgecolors="white", linewidth=0.5)
+ 
+    ax.set_yticks(range(len(categories)))
+    ax.set_yticklabels(categories)
+    ax.set_ylim(-0.6, len(categories) - 0.4)
+    ax.set_title("When each background sound happened during the call")
+    _apply_mmss_xaxis(ax, duration_s)
+    ax.grid(axis="x", linestyle="--", alpha=0.3)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    return fig
+ 
+ 
+def plot_sound_duration_bar(events: list):
+    """
+    Bar chart: total seconds each background-sound category was present
+    during the call, longest first -- a quick "what did we hear, and how
+    much of it" summary, labeled with exact seconds on each bar.
+    """
+    if not events:
+        fig, ax = plt.subplots(figsize=(10, 1.6))
+        ax.text(0.5, 0.5, "No notable background sounds detected above threshold",
+                ha="center", va="center", fontsize=11)
+        ax.axis("off")
+        return fig
+ 
+    totals = {}
+    for e in events:
+        totals[e["category"]] = totals.get(e["category"], 0.0) + (e["end"] - e["start"])
+    items = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)
+    cats = [c for c, _ in items]
+    durations = [d for _, d in items]
+    colors = [SOUND_COLORS.get(c, "#999999") for c in cats]
+ 
+    fig, ax = plt.subplots(figsize=(10, 0.5 * len(cats) + 1.5))
+    bars = ax.barh(cats, durations, color=colors)
+    ax.invert_yaxis()
+    ax.set_xlabel("Total time detected (seconds)")
+    ax.set_title("Which background sounds were heard, and for how long")
+ 
+    max_dur = max(durations) if durations else 1.0
+    for bar, d in zip(bars, durations):
+        ax.text(bar.get_width() + max_dur * 0.02, bar.get_y() + bar.get_height() / 2,
+                f"{d:.1f}s", va="center", fontsize=9)
+ 
+    ax.set_xlim(0, max_dur * 1.18)
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+    fig.tight_layout()
+    return fig
+ 
