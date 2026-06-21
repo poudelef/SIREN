@@ -1,4 +1,5 @@
 # SIREN — Smart Incident Recognition & Emergency Network
+[Google Colab](https://colab.research.google.com/drive/1W_OqOtaapQX4pqGyzm02OEglXHOvG3HX?usp=sharing) | [Public 911 audio](https://www.kaggle.com/datasets/louisteitelbaum/911-recordings/data?select=911_recordings)
 
 **An AI co-pilot for 911 dispatchers.** Upload an emergency call recording and
 get back a structured, triage-ready incident report: transcript, background
@@ -49,7 +50,7 @@ Audio file
    │
    ├─► librosa  ───────────► waveform / FFT spectrum / spectrogram
    │
-   ├─► faster-whisper or Deepgram ─► timestamped transcript
+   ├─► Deepgram ─► timestamped transcript
    │
    ├─► YAMNet (TF-Hub) ───────────► per-frame, per-category sound scores
    │        └─► extract_events()  ─► background sound timeline
@@ -114,21 +115,6 @@ Open the local URL Streamlit prints (usually `http://localhost:8501`).
 - First `faster-whisper` run downloads model weights — same deal, cached
   after that.
 
-## Demo script (≈60 seconds, for judges)
-
-1. Open the app, point out the disclaimer banner (judges like seeing
-   responsible-AI framing front and center, not as an afterthought).
-2. Upload one dramatic call. Hit Analyze.
-3. While it processes: narrate the pipeline ("librosa → YAMNet → Claude").
-4. Land on the **Report** tab — lead with threat level + the _why_.
-5. Flip to **Sound Timeline** — show a background event (e.g. glass
-   breaking, siren) with its timestamp, and mention the overlapping-category
-   detection design choice above — it's a good "most technical" talking
-   point.
-6. Upload a second, calmer call. Show the **Dispatch Queue** view sorting
-   both by threat level — this is the "why this matters for a real
-   dispatcher" moment.
-
 ## Hackathon track alignment
 
 - **Public safety / real-world impact:** decision support for emergency
@@ -140,9 +126,8 @@ Open the local URL Streamlit prints (usually `http://localhost:8501`).
 - **Most technical:** combines speech-to-text, FFT/STFT signal processing,
   multi-label overlapping audio-event classification, an explainable
   heuristic scoring model, and LLM reasoning into one pipeline.
-
-## Known limitations / good "future work" answers for Q&A
-
+- **Solo Hacking** 
+## Known limitations 
 - The panic score is a heuristic, not a validated clinical measure — it's
   designed to be transparent and inspectable, not to claim more certainty
   than it has.
@@ -250,3 +235,4 @@ to generate structured incident reports and dispatcher recommendations.
 | Visualization        | Matplotlib      |
 
 ---
+
