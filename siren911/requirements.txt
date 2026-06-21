@@ -1,0 +1,12 @@
+streamlit>=1.32
+librosa>=0.10
+soundfile
+numpy
+scipy
+matplotlib
+pandas
+tensorflow>=2.13
+tensorflow-hub
+anthropic>=0.40
+deepgram-sdk>=3.0
+noisereduce
