@@ -26,18 +26,33 @@ SYSTEM_PROMPT = dedent("""\
     Respond with ONLY valid JSON (no prose, no markdown fences) matching
     this schema:
 
-    {
-      "incident_type": str,
-      "threat_level": "Low" | "Medium" | "High" | "Critical",
-      "threat_reasons": [str, ...],
-      "victims_estimate": str,
-      "suspect_info": str,
-      "environment_guess": str,
-      "recommended_priority": str,
-      "timeline": [{"time_s": number, "event": str, "source": "transcript"|"audio"|"inference"}, ...],
-      "confidence": "Low" | "Medium" | "High",
-      "human_review_notes": str
+     {
+        "one_line_summary": str,        // ONE short plain-English sentence: who/what/where
+        "incident_type": str,
+        "threat_level": "Low" | "Medium" | "High" | "Critical",
+        "recommended_priority": str,
+        "confidence": "Low" | "Medium" | "High",
+
+        "location": str,                // best known address/location; "Unknown" if not stated
+        "environment": "Indoor" | "Outdoor" | "Vehicle" | "Unclear",
+        "people_count": str,            // SHORT, e.g. "3 (1 victim, 2 bystanders)"
+        "people_names": [str, ...],     // names/initials actually mentioned; [] if none
+        "genders": str,                 // SHORT, e.g. "Victim: F · Suspect: M"
+        "weapon": str,                  // SHORT, e.g. "Firearm (reported)", "None mentioned"
+        "suspect_status": str,          // SHORT, e.g. "Fled scene", "Still on scene", "Unknown"
+        "injuries": str,                // SHORT, e.g. "1 GSW, heavy bleeding", "None reported"
+
+        "threat_reasons": [str, ...],
+        "victims_estimate": str,
+        "suspect_info": str,
+        "environment_guess": str,
+        "timeline": [{"time_s": number, "event": str, "source": "transcript"|"audio"|"inference"}, ...],
+        "human_review_notes": str
     }
+
+    Keep every field marked SHORT genuinely short (a few words, one clause)
+    — these are read at a glance mid-call, not as prose. Longer reasoning
+    belongs only in threat_reasons / human_review_notes.
 """)
 
 

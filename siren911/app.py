@@ -31,6 +31,7 @@ import streamlit as st
 from sentinel_core.audio_analysis import (
     load_audio, denoise_audio, compute_rms_envelope, compute_pitch_stats,
     plot_waveform, plot_spectrum, plot_spectrogram,
+    plot_voice_energy_timeline, plot_sound_event_timeline, plot_sound_duration_bar,  # ← added
 )
 from sentinel_core.sound_classifier import YamnetClassifier, extract_events, guess_environment
 from sentinel_core.panic_detector import estimate_panic
@@ -160,6 +161,10 @@ def process_call(uploaded_file, settings) -> dict:
     log(f"DONE — total {time.time() - t0:.1f}s")
     return report
 
+def _fact(col, label, value):
+    with col:
+        st.caption(f" {label}")
+        st.markdown(f"**{value}**")
 
 def render_call(report: dict):
     ai = report.get("ai_assessment", {}) or {}
@@ -171,31 +176,64 @@ def render_call(report: dict):
     )
 
     tabs = st.tabs([
-        "📋 Report", "📝 Transcript", "📈 Audio Visuals",
-        "🔊 Sound Timeline", "😰 Panic Detail", "🧾 Raw JSON",
+        "Report", "Transcript", "Audio Visuals",
+        "Sound Timeline", "Panic Detail", "Raw JSON",
     ])
 
     with tabs[0]:
         if "error" in ai:
             st.warning(ai["error"])
         else:
-            c1, c2, c3 = st.columns(3)
+            # --- one-line summary banner ---
+            st.markdown(f"#### {ai.get('one_line_summary', '—')}")
+            st.divider()
+
+            # --- key facts grid: scannable in seconds ---
+            r1 = st.columns(4)
+            _fact(r1[0], "Location", ai.get("location", "—"))
+            _fact(r1[1], "Environment", ai.get("environment", "—"))
+            _fact(r1[2], "People", ai.get("people_count", "—"))
+            names = ai.get("people_names", [])
+            _fact(r1[3], "Names mentioned", ", ".join(names) if names else "None")
+
+            r2 = st.columns(4)
+            _fact(r2[0], "Gender(s)", ai.get("genders", "—"))
+            _fact(r2[1], "Weapon", ai.get("weapon", "—"))
+            _fact(r2[2], "Suspect status", ai.get("suspect_status", "—"))
+            _fact(r2[3], "Injuries", ai.get("injuries", "—"))
+
+            st.divider()
+
+            # --- priority action, front and center since it's the call to action ---
+            priority_box = {"Critical": st.error, "High": st.warning}.get(threat, st.info)
+            priority_box(f"**{ai.get('recommended_priority', '—')}**")
+
+            c1, c2 = st.columns(2)
             c1.metric("Incident Type", ai.get("incident_type", "—"))
-            c2.metric("Recommended Priority", ai.get("recommended_priority", "—"))
-            c3.metric("AI Confidence", ai.get("confidence", "—"))
-            st.markdown("**Why:**")
-            for r in ai.get("threat_reasons", []):
-                st.markdown(f"- {r}")
-            st.markdown(f"**Victims (estimate):** {ai.get('victims_estimate', '—')}")
-            st.markdown(f"**Suspect info:** {ai.get('suspect_info', '—')}")
-            st.markdown(f"**Environment guess:** {ai.get('environment_guess', report['_environment_guess_local'])}")
-            st.info(f"Human review notes: {ai.get('human_review_notes', 'None')}")
-            st.markdown("**Merged Timeline:**")
-            for item in ai.get("timeline", []):
-                st.markdown(f"`{item.get('time_s', 0):>6.1f}s` · [{item.get('source', '?')}] {item.get('event', '')}")
+            c2.metric("AI Confidence", ai.get("confidence", "—"))
+
+            with st.expander("Why this threat level"):
+                for r in ai.get("threat_reasons", []):
+                    st.markdown(f"- {r}")
+                st.markdown(f"**Victims (estimate):** {ai.get('victims_estimate', '—')}")
+                st.markdown(f"**Suspect info:** {ai.get('suspect_info', '—')}")
+                st.markdown(
+                    f"**Environment guess (detail):** "
+                    f"{ai.get('environment_guess', report['_environment_guess_local'])}"
+                )
+
+            with st.expander("Merged timeline"):
+                for item in ai.get("timeline", []):
+                    st.markdown(
+                        f"`{item.get('time_s', 0):>6.1f}s` · "
+                        f"[{item.get('source', '?')}] {item.get('event', '')}"
+                    )
+
+            with st.expander("Human review notes", expanded=False):
+                st.info(ai.get("human_review_notes", "None"))
 
         md_report = to_markdown(report)
-        st.download_button("⬇️ Download report (Markdown)", md_report, file_name=f"{report['call_name']}_report.md")
+        st.download_button("Download report (Markdown)", md_report, file_name=f"{report['call_name']}_report.md")
 
     with tabs[1]:
         st.audio(report["_audio_path"])
@@ -203,10 +241,28 @@ def render_call(report: dict):
             st.markdown(f"`{seg.start:>6.1f}s` **{seg.speaker}:** {seg.text}")
 
     with tabs[2]:
-        waveform_fig, spectrum_fig, spectrogram_fig = cache_plots(report["_wav_data"], report["_sr"])
-        st.pyplot(waveform_fig)
-        st.pyplot(spectrum_fig)
-        st.pyplot(spectrogram_fig)
+        # waveform_fig, spectrum_fig, spectrogram_fig = cache_plots(report["_wav_data"], report["_sr"])
+        st.caption(
+            "Plain-language view of the call's audio — built for a quick read by "
+            "a dispatcher or responding officer, not an audio engineer."
+        )
+        st.markdown("**Caller voice energy over time**")
+        st.pyplot(plot_voice_energy_timeline(
+            report["_rms_times"], report["_rms"], report["duration_seconds"]
+        ))
+
+        st.markdown("**When each background sound happened**")
+        st.pyplot(plot_sound_event_timeline(
+            report["background_sound_events"], report["duration_seconds"]
+        ))
+
+        st.markdown("**How much of the call had each background sound**")
+        st.pyplot(plot_sound_duration_bar(report["background_sound_events"]))
+
+        with st.expander("🔬 Technical audio views (waveform / FFT / spectrogram)"):
+            st.pyplot(plot_waveform(report["_wav_data"], report["_sr"]))
+            st.pyplot(plot_spectrum(report["_wav_data"], report["_sr"]))
+            st.pyplot(plot_spectrogram(report["_wav_data"], report["_sr"]))
 
     with tabs[3]:
         if report["background_sound_events"]:

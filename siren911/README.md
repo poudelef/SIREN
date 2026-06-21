@@ -1,4 +1,4 @@
-# 🚨 SIREN — Smart Incident Recognition & Emergency Network
+# SIREN — Smart Incident Recognition & Emergency Network
 
 **An AI co-pilot for 911 dispatchers.** Upload an emergency call recording and
 get back a structured, triage-ready incident report: transcript, background
@@ -28,7 +28,7 @@ It also reads well as an acronym: **S**mart **I**ncident **R**ecognition &
    Deepgram if you have an API key (more accurate, gives speaker
    diarization).
 3. **Classifies background sound** with Google's YAMNet, frame by frame,
-   *per category* — not just "whatever's loudest" — so a quiet siren under a
+   _per category_ — not just "whatever's loudest" — so a quiet siren under a
    caller's voice still gets flagged. See "A design note" below for why this
    matters.
 4. **Scores caller panic** (0–10) using a transparent, explainable blend of
@@ -75,8 +75,8 @@ docstring explaining exactly why it's not used in the real pipeline).
 
 The fix: run YAMNet on the **original, full-bandwidth audio**, and instead of
 only taking each frame's single top-1 label (which is almost always
-"Speech" — it's usually the loudest thing), score *every category of
-interest independently per frame*. That's what `extract_events()` in
+"Speech" — it's usually the loudest thing), score _every category of
+interest independently per frame_. That's what `extract_events()` in
 `sentinel_core/sound_classifier.py` does, and it's why SIREN can flag a siren
 or alarm happening **underneath** a caller talking, not just whatever sound
 wins a popularity contest at each instant.
@@ -84,7 +84,7 @@ wins a popularity contest at each instant.
 ## Setup
 
 ```bash
-git clone <this folder, or unzip it>
+git clone https://github.com/poudelef/SIREN.git
 cd siren911
 python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
@@ -95,15 +95,17 @@ streamlit run app.py
 Open the local URL Streamlit prints (usually `http://localhost:8501`).
 
 **You need:**
+
 - An [Anthropic API key](https://console.anthropic.com) for the threat
   assessment / report step (many hackathons hand these out via sponsor
   credits — check if yours does).
-- *Nothing else is required.* Transcription defaults to local
+- _Nothing else is required._ Transcription defaults to local
   `faster-whisper`, so the demo works even with no internet and no Deepgram
   key. Toggle Deepgram in the sidebar if you want diarized, higher-accuracy
   transcripts and have a key.
 
 **Troubleshooting:**
+
 - TensorFlow installs most reliably on Python 3.10–3.11. If `pip install` for
   `tensorflow` fails on your Python version, create the venv with a pinned
   earlier Python (`python3.11 -m venv venv`).
@@ -118,7 +120,7 @@ Open the local URL Streamlit prints (usually `http://localhost:8501`).
    responsible-AI framing front and center, not as an afterthought).
 2. Upload one dramatic call. Hit Analyze.
 3. While it processes: narrate the pipeline ("librosa → YAMNet → Claude").
-4. Land on the **Report** tab — lead with threat level + the *why*.
+4. Land on the **Report** tab — lead with threat level + the _why_.
 5. Flip to **Sound Timeline** — show a background event (e.g. glass
    breaking, siren) with its timestamp, and mention the overlapping-category
    detection design choice above — it's a good "most technical" talking
@@ -171,3 +173,80 @@ siren911/
     ├── claude_brain.py          # Claude prompt + structured-JSON parsing
     └── report.py                 # combine signals -> markdown report
 ```
+
+# SIREN Architecture
+
+## Overview
+
+**SIREN (Smart Incident Recognition & Emergency Network)** is an AI-powered decision-support system for emergency dispatch centers.
+
+The system analyzes 911 call recordings and combines:
+
+- Speech transcription
+- Environmental sound detection
+- Caller stress analysis
+- Large Language Model (Claude) reasoning
+
+to generate structured incident reports and dispatcher recommendations.
+
+---
+
+# High-Level Architecture
+
+```text
+                ┌──────────────────┐
+                │ 911 Call Audio   │
+                │ MP3/WAV/M4A/etc  │
+                └─────────┬────────┘
+                          │
+                          ▼
+               ┌────────────────────┐
+               │ Audio Processing   │
+               │ librosa            │
+               └─────────┬──────────┘
+                         │
+        ┌────────────────┼────────────────┐
+        ▼                ▼                ▼
+
+┌──────────────┐ ┌───────────────┐ ┌───────────────┐
+│Transcription │ │Sound Detection│ │Panic Analysis │
+│ Deepgram     │ │ YAMNet        │ │ Acoustic NLP  │
+└──────┬───────┘ └───────┬───────┘ └──────┬────────┘
+       │                 │                │
+       ▼                 ▼                ▼
+
+ Transcript       Sound Events      Panic Score
+       │                 │                │
+       └─────────────────┼────────────────┘
+                         ▼
+
+               ┌─────────────────┐
+               │ Claude Reasoner │
+               │ Incident Triage │
+               └────────┬────────┘
+                        │
+                        ▼
+
+              Structured Incident Report
+
+                        │
+                        ▼
+
+                Streamlit Dashboard
+```
+
+# Technology Stack
+
+| Layer                | Technology      |
+| -------------------- | --------------- |
+| UI                   | Streamlit       |
+| Audio Processing     | Librosa         |
+| Noise Reduction      | Noisereduce     |
+| Speech Recognition   | Deepgram Nova-2 |
+| Sound Classification | Google YAMNet   |
+| Machine Learning     | TensorFlow      |
+| LLM Reasoning        | Claude Sonnet   |
+| Data Handling        | NumPy, Pandas   |
+| Visualization        | Matplotlib      |
+
+---
