@@ -1,0 +1,20 @@
+name: Deploy Streamlit Docker App
+
+on:
+  push:
+    branches:
+      - test
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t siren .
+
+      - name: Run basic test
+        run: docker run siren python -c "print('build success')"

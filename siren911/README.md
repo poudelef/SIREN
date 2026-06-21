@@ -49,7 +49,7 @@ Audio file
    │
    ├─► librosa  ───────────► waveform / FFT spectrum / spectrogram
    │
-   ├─► faster-whisper or Deepgram ─► timestamped transcript
+   ├─► Deepgram ─► timestamped transcript
    │
    ├─► YAMNet (TF-Hub) ───────────► per-frame, per-category sound scores
    │        └─► extract_events()  ─► background sound timeline
