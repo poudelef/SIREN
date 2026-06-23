@@ -1,5 +1,5 @@
 # SIREN — Smart Incident Recognition & Emergency Network
-[Google Colab](https://colab.research.google.com/drive/1W_OqOtaapQX4pqGyzm02OEglXHOvG3HX?usp=sharing) | [Public 911 audio](https://www.kaggle.com/datasets/louisteitelbaum/911-recordings/data?select=911_recordings)
+[Google Colab](https://colab.research.google.com/drive/1W_OqOtaapQX4pqGyzm02OEglXHOvG3HX?usp=sharing) | [Public 911 audio](https://www.kaggle.com/datasets/louisteitelbaum/911-recordings/data?select=911_recordings) | [Try it (You will need Anthropic and Deepgram API key ot run)](https://siren-app.proudground-4afd60f0.eastus.azurecontainerapps.io/)
 
 **An AI co-pilot for 911 dispatchers.** Upload an emergency call recording and
 get back a structured, triage-ready incident report: transcript, background
